@@ -10,10 +10,6 @@ class ServiceException(Exception):
     def __str__(self):
         return "%s\n%s" % (self.msg, "\n%s" % self.traceback if self.traceback else "")
 
-class DispatchError(Exception):
-    def __init__(self, msg):
-        self.msg = msg
-
 class ExceptionCreator(object):
     def __getattr__(self, name):
         cls = type(name, (ServiceException,), {})
@@ -22,7 +18,7 @@ class ExceptionCreator(object):
 
 class ServiceRequest(object):
     def __init__(self, method, params):
-        self.methods = method
+        self.method = method
         self.params = params
 
 class ServiceResponse(object):
@@ -44,7 +40,7 @@ class MethodProxy(object):
 class ServiceInterface(object):
     def __init__(self, name, url):
         self._name = name
-        self._url = url if url.endswith('/') else url+"/"
+        self._url = (url if url.endswith('/') else url+"/").format(name=name)
         self.exception = ExceptionCreator()
 
     def __getattr__(self, name):
@@ -54,10 +50,15 @@ class ServiceInterface(object):
         if len(args) > 0:
             raise TypeError("Proxied functions do not allow positional arguments")
 
-        sarg = serializer.dumps(kwargs)
-        response = urllib2.urlopen("%s%s/" % (self._url, method), sarg)
-        res = serializer.loads(response.read())
+        request = ServiceRequest(method, kwargs)
+        response = self.perform(request)
+        if response.error:
+            error = response.error
+            raise getattr(self.exception, error['type'])(error['message'], error.get('traceback'))
+        return response.result
 
-        if res['error']:
-            raise getattr(self.exception, res['error']['type'])(res['error']['message'], res['error'].get('traceback'))
-        return res['result']
+    def perform(self, request):
+        sarg = serializer.dumps(request.params)
+        response = urllib2.urlopen("%s%s/" % (self._url, request.method), sarg)
+        res = serializer.loads(response.read())
+        return ServiceResponse(res.get('result'), res.get('error'))
