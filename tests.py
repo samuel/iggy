@@ -54,10 +54,7 @@ class TestRemote(unittest.TestCase):
         time.sleep(0.5)
 
         self.proxy = ServiceProxy(
-            {"services": {
-                "testservice": "http://localhost:8000/{name}/",
-                "echoservice": "http://localhost:8000/{name}/",
-            }}
+            {"default_uri": "http://localhost:8000/{service}/"},
         )
 
     def tearDown(self):

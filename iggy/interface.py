@@ -40,7 +40,7 @@ class MethodProxy(object):
 class ServiceInterface(object):
     def __init__(self, name, url):
         self._name = name
-        self._url = (url if url.endswith('/') else url+"/").format(name=name)
+        self._url = url if url.endswith('/') else url+"/"
         self.exception = ExceptionCreator()
 
     def __getattr__(self, name):
